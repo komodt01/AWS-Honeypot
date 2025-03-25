@@ -1,0 +1,23 @@
+{
+    "logs": {
+        "logs_collected": {
+            "files": {
+                "collect_list": [
+                    {
+                        "file_path": "/home/cowrie/cowrie/var/log/cowrie/cowrie.log",
+                        "log_group_name": "/aws/honeypot/cowrie",
+                        "log_stream_name": "{instance_id}-cowrie-log",
+                        "timestamp_format": "%Y-%m-%d %H:%M:%S"
+                    },
+                    {
+                        "file_path": "/home/cowrie/cowrie/var/log/cowrie/json.log",
+                        "log_group_name": "/aws/honeypot/cowrie-json",
+                        "log_stream_name": "{instance_id}-cowrie-json-log",
+                        "timestamp_format": "%Y-%m-%d %H:%M:%S"
+                    }
+                ]
+            }
+        },
+        "log_stream_name": "honeypot-stream"
+    }
+}
