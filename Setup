@@ -1,5 +1,5 @@
 # setup.md
-### AWS Honeypot (Cowrie) — Setup Guide
+### AWS Honeypot — Setup Guide
 
 This guide provides the one-time prerequisites required to prepare your local environment and AWS account before deploying the honeypot using Terraform.
 
