@@ -1,31 +1,103 @@
-## Business Requirements
-- Provide a safe, isolated environment to observe attacker behavior against an SSH service.
-- Collect detailed telemetry (sessions, commands, IPs) for security analysis and learning.
-- Avoid any risk to production systems or customer data.
-- Keep monthly spend low enough for personal lab use.
+# design_overview.md
+### AWS Honeypot (Cowrie) — Design Overview
 
-## Architecture Summary
-- **Network:** Dedicated VPC + public subnet for the honeypot EC2 instance.
-- **Compute:** Ubuntu EC2 instance running Cowrie SSH honeypot.
-- **Identity:** IAM role attached via instance profile, granting only required CloudWatch/log permissions.
-- **Logging:** CloudWatch Logs for system and Cowrie logs; optional Kinesis Firehose → S3 + Splunk HEC.
-- **Management:** Deployed and destroyed via Terraform.
+The goal of this project is to deploy a safe, isolated AWS environment that captures attacker behavior while ensuring the surrounding cloud environment remains protected.
 
-## Design Trade-offs
-- **Cost vs. Observability:** Single-AZ, single instance to minimize cost, accepting that availability is lab-level only.
-- **Exposure vs. Safety:** Publicly reachable instance to attract attackers, but isolated VPC and restricted IAM to limit blast radius.
-- **Simplicity vs. Flexibility:** Terraform-based single environment rather than multiple staged environments, to keep the lab simple.
+---
 
-## Cost Estimate
-- EC2 t3.micro or t3.small instance.
-- CloudWatch logs ingestion & storage.
-- Optional Kinesis Firehose + S3 storage.
-> Estimated: low tens of USD/month for continuous running; much less if only run periodically.
+## 1. Business Purpose
 
-## Well-Architected Pillar Mapping
-| Pillar | Design Decision | Rationale |
-|--------|-----------------|-----------|
-| Security | Isolated VPC, least-privilege IAM, central logging | Limit blast radius and preserve forensic data |
-| Resilience | Single instance (lab) with easy Terraform redeploy | Lab environment, not production HA |
-| Performance | Not performance-critical | Focus is observability, not throughput |
-| Cost Optimization | Small instance types, short runtime, minimal ancillary services | Keep lab affordable |
+This honeypot supports:
+
+- Threat research  
+- Incident response enrichment  
+- Training for cloud security analysis  
+- Understanding attacker behavior in a controlled environment  
+
+It is not a production system and is intentionally exposed.
+
+---
+
+## 2. High-Level Architecture Summary
+
+Components:
+
+- **VPC (Isolated Subnet)**  
+  - Dedicated environment  
+  - No connectivity to production or other VPCs  
+
+- **EC2 Honeypot Instance (Cowrie)**  
+  - Simulates vulnerable SSH environment  
+  - Captures session logs, attacker commands, file uploads  
+
+- **IAM Role + Instance Profile**  
+  - Grants only CloudWatch Logs write access  
+  - No long-lived credentials  
+
+- **CloudWatch Logs**  
+  - Centralized storage for Cowrie + system logs  
+  - Immutable, timestamped, tamper-resistant  
+
+- **Optional: Kinesis Firehose → S3 / Splunk**  
+  - For enterprise SIEM integration  
+
+- **Analyst Workstation**  
+  - Used to review logs and events  
+  - Not directly connected to the instance  
+
+---
+
+## 3. Design Principles
+
+- **Isolation:** The honeypot must not reach any internal or production systems.  
+- **Containment:** Outbound egress is restricted.  
+- **Visibility:** Logging is enabled and centrally stored.  
+- **Repeatability:** Terraform manages deployment and teardown.  
+- **Safety:** No real data or sensitive keys stored on instance.
+
+---
+
+## 4. Design Trade-Offs
+
+| Decision | Benefit | Trade-Off |
+|---------|---------|-----------|
+| Single AZ, single instance | Low cost, simple | No resilience; acceptable for honeypots |
+| Public SSH exposure | Captures real attacks | Increases noise / frequent scans |
+| Outbound restrictions | Prevents pivot attacks | Limits ability to capture attacker outbound behavior |
+| Terraform-based IaC | Repeatable, clean teardown | Requires more setup upfront |
+
+---
+
+## 5. Threat Model Overview
+
+Primary threats:
+
+- Unauthorized outbound connections  
+- Attempted privilege escalation on the host  
+- Malware uploads  
+- Automated internet scanning  
+- Log tampering attempts  
+
+Mitigations:
+
+- Outbound SG restrictions  
+- IAM least privilege  
+- Logs stored off-host  
+
+---
+
+## 6. Cost Considerations
+
+Estimated costs (monthly):
+
+- EC2 t3.micro/t3.small: low  
+- CloudWatch Logs ingestion: low to moderate depending on attack volume  
+- Optional Firehose / S3 / Splunk: moderate but controllable  
+
+Goal: remain under ~$10–$20/mo depending on attack frequency.
+
+---
+
+## 7. Architecture Diagram
+
+See: **honeypot_architecture.png**  
