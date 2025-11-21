@@ -1,4 +1,4 @@
-# AWS Honeypot (Cowrie) Project
+# AWS Honeypot Project
 
 This project deploys a safe, isolated AWS honeypot using Cowrie on an EC2 instance.  
 The goal is to observe attacker behavior while maintaining strict isolation from the rest of the AWS account.
