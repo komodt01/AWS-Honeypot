@@ -1,24 +1,84 @@
-## 1. Security Objectives
-- Capture attacker activity in a controlled environment without exposing production assets.
-- Maintain confidentiality and integrity of AWS account and logs.
-- Ensure availability of logging and monitoring for forensic analysis.
-- Provide auditable traces of attacker interactions (IAM, network, and system logs).
+# security_requirements.md
+### AWS Honeypot Project — Security Requirements
 
-## 2. Controls Implemented
-- **Identity & Access**
-  - Dedicated IAM role for the EC2 honeypot with least-privilege permissions.
-  - No long-lived access keys on the instance; use instance profile only.
-- **Network Security**
-  - Isolated VPC and subnet dedicated to the honeypot.
-  - Security group exposing only SSH (and only as needed for the scenario).
-- **Logging & Monitoring**
-  - CloudWatch agent shipping Cowrie logs to CloudWatch Logs.
-  - Optional Kinesis Firehose → Splunk HEC stream for central SIEM ingestion.
-- **Governance**
-  - All resources deployed through Terraform IaC for repeatability and review.
+Although a honeypot is intentionally exposed to attacker traffic, the surrounding AWS environment **must remain secure**.  
+These requirements define what must be protected even while the honeypot itself is intentionally vulnerable.
 
-## 3. Residual Risks & Mitigations
-- **Risk:** Honeypot infrastructure could be abused to attack other systems.
-  - **Mitigation:** Strict outbound rules; monitor egress; tear down when not in use.
-- **Risk:** Logs may contain malicious payloads.
-  - **Mitigation:** Treat logs as untrusted input; analyze in isolated tools/VMs.
+---
+
+## 1. Objectives
+
+- Capture attacker behavior (commands, IPs, sessions, techniques).
+- Prevent the honeypot from becoming a pivot point into the AWS account.
+- Preserve the integrity and availability of logs for analysis.
+- Minimize cost and blast radius.
+- Ensure the environment can be safely torn down and rebuilt.
+
+---
+
+## 2. Identity & Access Requirements
+
+- **No IAM users** may authenticate to the honeypot instance.
+- An **IAM Role + Instance Profile** must be used instead of static credentials.
+- IAM permissions must follow **least privilege**, only allowing:
+  - CloudWatch Logs write access
+  - Optional Kinesis Firehose delivery
+- Terraform must manage IAM to ensure repeatability and auditability.
+
+---
+
+## 3. Network & Isolation Requirements
+
+- Honeypot must be deployed in a **dedicated VPC or isolated subnet**.
+- Security Group must:
+  - Allow inbound SSH (0.0.0.0/0 is acceptable for honeypots)
+  - Restrict outbound traffic to prevent lateral movement
+- No VPC peering, private links, or routes to production resources.
+
+---
+
+## 4. Logging & Monitoring Requirements
+
+- Cowrie logs must be forwarded to **CloudWatch Logs**.
+- System logs (auth, syslog) must also be collected.
+- Logs must retain integrity — attackers should not be able to modify CloudWatch entries.
+- Optional: Kinesis Firehose → S3 or Splunk for deeper analysis.
+
+---
+
+## 5. Configuration Requirements
+
+- Terraform IaC must deploy:
+  - VPC + Subnet
+  - EC2 instance
+  - IAM role
+  - SG rules
+  - CloudWatch log group(s)
+
+- EC2 instance must be locked down:
+  - No new packages outside Cowrie dependencies
+  - No sensitive data or secrets
+  - No key material stored on disk
+
+---
+
+## 6. Residual Risks
+
+These risks are **normal for honeypots** and must be acknowledged:
+
+- Attackers may attempt outbound scanning → mitigated by outbound SG restrictions.
+- Attackers may upload malware → logs reviewed in separate analyst system.
+- IP address will be targeted continuously → expected behavior.
+
+---
+
+## 7. Acceptance Criteria
+
+A honeypot deployment is acceptable when:
+
+- Logs stream to CloudWatch successfully.
+- IAM role has no excess permissions.
+- SSH is reachable publicly and Cowrie is logging sessions.
+- Outbound pivot attempts are blocked.
+- Terraform can fully deploy and destroy the environment.
+
